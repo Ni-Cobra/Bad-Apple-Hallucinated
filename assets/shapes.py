@@ -670,6 +670,72 @@ def crown_splash(cx, cy, r=120, spikes=11, t=1.0, color=None):
     return polys
 
 
+def raised_finger(cx, base_y, length=64, w=20):
+    """A raised hand: a fist with one index finger pointing straight up.
+
+    The shared 4->5 micro-handoff: Patchouli's close-up wagging index finger
+    (Scene 4's last beat) morphs into Remilia (Scene 5 grows the figure out
+    from under it). Authored once here so both sides share one silhouette.
+    Rooted at the fist centre (cx, base_y); the fingertip is at base_y-length.
+    """
+    fist = ellipse_poly(cx, base_y, w, w * 0.92)
+    fw = w * 0.34
+    finger = [(cx - fw, base_y - w * 0.2), (cx + fw, base_y - w * 0.2),
+              (cx + fw * 0.7, base_y - length), (cx - fw * 0.7, base_y - length)]
+    return fist + [finger]
+
+
+def bat_wing(cx, cy, span=160, side=1, droop=0.0, t=1.0):
+    """One scalloped bat wing rooted at (cx, cy) (Remilia, Scene 5).
+
+    Extends toward +x for *side*=+1, -x for -1. A membrane spanning four finger
+    spars with a scalloped (concave-dipped) trailing edge -- the identifying
+    Remilia silhouette feature. *t* in [0,1] grows the wing as it spreads;
+    *droop* lowers the spar tips for a relaxed/folded look.
+    """
+    s = side
+    L = span * t
+    spars = [
+        (cx + s * L * 1.00, cy - L * 0.30),
+        (cx + s * L * 0.80, cy + L * 0.02 + droop),
+        (cx + s * L * 0.54, cy + L * 0.26 + droop),
+        (cx + s * L * 0.26, cy + L * 0.32 + droop),
+    ]
+    pts = [(cx, cy - L * 0.06), (cx + s * L * 0.95, cy - L * 0.36)]
+    for k in range(len(spars)):
+        pts.append(spars[k])
+        if k < len(spars) - 1:
+            ax, ay = spars[k]
+            bx, by = spars[k + 1]
+            pts.append(((ax + bx) / 2, (ay + by) / 2 + L * 0.13))   # scallop dip
+    pts.append((cx, cy + L * 0.14))
+    return [pts]
+
+
+def crystal_wing(cx, cy, span=150, side=1, prongs=5, t=1.0):
+    """One crystalline wing (Flandre, Scene 7): a thin arm spar carrying a row
+    of diamond crystal prongs.
+
+    Shared 6->7 handoff: the row of prongs is what 'emerges from the thrown
+    knife tip' (the prong nearest the spar tip is the one that grows out of the
+    knife). *t* in [0,1] grows the whole wing. *side*=+1 extends right, -1 left.
+    """
+    s = side
+    L = span * t
+    polys = []
+    tip = (cx + s * L, cy - L * 0.22)
+    polys += ribbon([(cx, cy), (cx + s * L * 0.5, cy - L * 0.10), tip], [6, 4, 2])
+    for k in range(prongs):
+        f = (k + 1) / (prongs + 1)
+        bx = cx + s * L * f
+        by = cy - L * 0.22 * f
+        ph = L * 0.24 * (0.55 + 0.45 * f)
+        pw = ph * 0.42
+        polys += [[(bx, by), (bx + pw, by + ph * 0.42),
+                   (bx, by + ph), (bx - pw, by + ph * 0.42)]]
+    return polys
+
+
 # ---------------------------------------------------------------------------
 # Scene helpers (draw directly to a canvas)
 # ---------------------------------------------------------------------------
@@ -730,6 +796,7 @@ if __name__ == "__main__":
         parasol(480, 360), scythe(480, 200), teacup(480, 360), knife(480, 360),
         rod_of_remorse(480, 500), pen(480, 360), gourd(480, 360), drop(480, 360),
         doll(480, 360), gap_sukima(480, 360), sdm_skyline(), crown_splash(480, 360),
+        raised_finger(480, 360), bat_wing(480, 360), crystal_wing(480, 360),
     ]
     print(f"shapes.py self-check OK: {len(_checks)} builders, "
           f"{sum(len(p) for p in _checks)} polygons total")
