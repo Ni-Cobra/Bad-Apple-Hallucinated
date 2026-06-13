@@ -1,0 +1,12 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Generated render output (frames are reproducible from the scene scripts)
+frames/**/*.png
+output/*.mp4
+
+# Scratch / preview subdirs
+frames/_smoke/
+frames/_assets_preview/
