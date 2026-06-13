@@ -52,7 +52,7 @@ instead of installing system-wide).
 | Frame rate | **30 fps** | the rate the original is commonly reproduced at |
 | Total duration | **219 s (3:39) = 6,570 frames** | matches the original |
 | Color mode | 8-bit grayscale PNG (`L`) | monochrome shadow art; AA edges produce grays — expected |
-| Audio | none | visuals-only project |
+| Audio | original Bad Apple!! PV track, muxed at encode time | frames are rendered silent; `encode.py` muxes `assets/badapple_audio.mp3` (320 kbps, 219.19 s) into the MP4 by default (`--no-audio` to skip) |
 | Frame naming | `frame_NNNNNN.png` (6 digits, global index from 0) | one continuous sequence across all scenes |
 | Anti-aliasing | 2x supersample + Lanczos downsample (built into `Canvas`) | Pillow has no native AA |
 
@@ -225,12 +225,21 @@ python src/scenes/example.py
 Encode the full frame sequence to the deliverable:
 
 ```bash
-python src/encode.py            # frames/*.png -> output/badapple.mp4 @ 30 fps, CRF 18, yuv420p, faststart
+python src/encode.py            # frames/*.png -> output/badapple.mp4 @ 30 fps, CRF 18, yuv420p, faststart, + audio
 ```
 
-Options: `--frames <dir> --out <file> --fps 30 --crf 18 --prefix frame_ --digits 6`.
+Options: `--frames <dir> --out <file> --fps 30 --crf 18 --prefix frame_ --digits 6
+--audio <file> --no-audio`.
 The script auto-detects the starting frame number and locates ffmpeg (PATH,
 then `~/.local/bin`).
+
+**Audio.** When `assets/badapple_audio.mp3` (the original PV soundtrack) is
+present, `encode.py` muxes it in as AAC 192 kbps and trims to the shorter of
+the two streams (`-shortest`) — so a partial-preview render gets the matching
+opening slice of the song, and the full 6,570-frame render gets the whole
+track (219.19 s audio vs 219.0 s video; the 0.19 s tail is trimmed). Use
+`--no-audio` for a silent render or `--audio <file>` to substitute a track.
+The mp3 was fetched from the Internet Archive item `bad-apple-pv_202605`.
 
 Equivalent raw one-liner (ffmpeg on PATH):
 
