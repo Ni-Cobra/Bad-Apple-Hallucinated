@@ -36,6 +36,7 @@ Recurring characters (PROJECT.md sec.9):
     marisa_broom -- scenes 3/35 (witch on broom, side view)
     marisa_hat   -- just the hat (feature)
     yukari       -- scenes 23/24 (parasol + mob cap)
+    tenshi       -- scenes 23 reveal/24 (peaked hat + long hair, swagger poses)
 
 Handoff shapes & shared props (the morph chain, PROJECT.md sec.6):
     apple, apple_core            (sc 1,2,3,35 / 3->4)
@@ -57,6 +58,7 @@ Handoff shapes & shared props (the morph chain, PROJECT.md sec.6):
     gap_sukima                   (sc 22->23)
     sdm_skyline                  (sc 3)
     crown_splash                 (sc 28,31)
+    splash_field / SPLASH_FIELD  (sc 28->29 -- spray plume that morphs to petals)
 
 Scene helpers (draw directly to a canvas):
     draw_stars(canvas, ...)      -- the scene-3 starfield (fixed, frame-stable)
@@ -437,6 +439,58 @@ def yukari(cx=480, scale=1.0):
     return polys
 
 
+def tenshi(cx, foot_y, scale=1.0, pose="hips"):
+    """Tenshi Hinanawi (Scene 23 reveal / Scene 24): identified by her hat's two
+    outward-pointing peaks (rinka 'keystone' + peaches) over long hair, plus a
+    cocky stance. *foot_y* is the sole line; the figure is ~500 px tall.
+
+    poses:
+      'hips'  -- hands-on-hips swagger, both arms akimbo (ref f4426)
+      'flick' -- arms flung out, hair flicked to one side (ref f4501)
+      'peach' -- left hand on hip, right arm raised holding a round peach (f4561)
+    Built from the shared toolkit so the silhouette matches the rest of the cast.
+    """
+    polys = []
+    hy = foot_y - 452                       # head centre
+    R = 44
+    polys += long_hair(cx + 6, hy - 8, 60, 326)              # long hair down the back
+    polys += head(cx, hy, R)
+    # hat: a low cap with two outward peaks + a small centre peak (the feature)
+    cy = hy - R * 0.74
+    polys += ellipse_poly(cx, cy, 46, 22)                    # cap
+    polys += [[(cx - 16, cy - 2), (cx - 82, cy - 42), (cx - 34, cy - 16)]]   # left peak
+    polys += [[(cx + 16, cy - 2), (cx + 82, cy - 42), (cx + 34, cy - 16)]]   # right peak
+    polys += [[(cx - 13, cy - 6), (cx, cy - 46), (cx + 13, cy - 6)]]         # centre peak
+    neck_y = hy + R * 0.86
+    waist_y = neck_y + 100
+    hem_y = foot_y - 18
+    polys += [[(cx - 17, neck_y), (cx + 17, neck_y),
+               (cx + 15, neck_y + 26), (cx - 15, neck_y + 26)]]             # neck
+    polys += [[(cx - 42, neck_y + 22), (cx + 42, neck_y + 22),
+               (cx + 34, waist_y), (cx - 34, waist_y)]]                     # blouse
+    polys += [[(cx - 34, waist_y), (cx + 34, waist_y),
+               (cx + 98, hem_y - 10), (cx + 58, hem_y), (cx, hem_y + 10),
+               (cx - 58, hem_y), (cx - 98, hem_y - 10)]]                    # flared skirt
+    polys += [[(cx - 26, hem_y), (cx - 5, hem_y), (cx - 9, foot_y), (cx - 30, foot_y)]]   # leg
+    polys += [[(cx + 5, hem_y), (cx + 26, hem_y), (cx + 30, foot_y), (cx + 9, foot_y)]]   # leg
+    sh_y = neck_y + 16
+    if pose == "hips":
+        polys += ribbon([(cx - 42, sh_y), (cx - 88, waist_y - 20), (cx - 28, waist_y - 4)], [14, 10, 8])
+        polys += ribbon([(cx + 42, sh_y), (cx + 88, waist_y - 20), (cx + 28, waist_y - 4)], [14, 10, 8])
+    elif pose == "flick":
+        polys += ribbon([(cx - 42, sh_y), (cx - 112, sh_y + 8), (cx - 152, sh_y - 22)], [14, 10, 6])
+        polys += ribbon([(cx + 42, sh_y), (cx + 112, sh_y + 8), (cx + 152, sh_y - 22)], [14, 10, 6])
+        polys += ribbon([(cx + 28, hy + 28), (cx + 122, hy + 78), (cx + 184, hy + 56)], [24, 15, 4])  # flicked hair
+    elif pose == "peach":
+        polys += ribbon([(cx - 42, sh_y), (cx - 86, waist_y - 18), (cx - 26, waist_y - 2)], [14, 10, 8])
+        rhx, rhy = cx + 116, sh_y - 92
+        polys += ribbon([(cx + 42, sh_y), (cx + 98, sh_y - 50), (rhx, rhy)], [14, 11, 8])
+        polys += circle_poly(rhx + 4, rhy - 14, 18)                          # the peach
+    if scale != 1.0:
+        polys = transform_polys(polys, scale=scale, origin=(cx, foot_y))
+    return polys
+
+
 # ---------------------------------------------------------------------------
 # Handoff shapes & shared props
 # ---------------------------------------------------------------------------
@@ -773,6 +827,33 @@ def crown_splash(cx, cy, r=120, spikes=11, t=1.0, color=None):
     return polys
 
 
+# Deterministic spray-fountain field for the Scene 28->29 handoff: Nitori's dive
+# throws up a plume of white droplets on black (ref f5431); Scene 29 morphs each
+# droplet into a swirling flower petal. Defined ONCE here so both scenes share
+# identical particle positions (PROJECT.md sec.6 rule 2). Each entry is the
+# SETTLED position the plume hangs at by the end of Scene 28 (= Scene 29's frame-0
+# state): (x, y, size). The plume rises from an impact origin near (470, 700).
+_splash_rng = random.Random(20120817)
+SPLASH_FIELD = []
+for _k in range(96):
+    _h = _splash_rng.random() ** 0.85                  # 0 = near impact, 1 = top of plume
+    _y = 700 - _h * 612                                # 700 -> ~88
+    _w = 0.22 + 0.78 * math.sin(math.pi * min(1.0, 0.06 + _h * 0.9))
+    _x = 458 + _splash_rng.uniform(-1, 1) * _w * 168
+    _s = _splash_rng.choice([2, 2, 2.5, 3, 3, 3.5, 4, 5])
+    SPLASH_FIELD.append((_x, _y, _s))
+
+
+def splash_field():
+    """The shared spray-fountain settled positions for the 28->29 handoff.
+
+    Returns the module-level SPLASH_FIELD list of (x, y, size) droplets. Scene 28
+    animates the plume rising INTO these positions (white-on-black) and Scene 29
+    morphs each droplet OUT of the same position into a sakura petal.
+    """
+    return SPLASH_FIELD
+
+
 def raised_finger(cx, base_y, length=64, w=20):
     """A raised hand: a fist with one index finger pointing straight up.
 
@@ -893,7 +974,10 @@ if __name__ == "__main__":
     # Tiny self-check: build everything once so import/argument errors surface.
     _checks = [
         reimu_back(), reimu_front(pose="apple"), reimu_front(pose="wind"), reimu_hairdown(),
-        marisa_broom(), yukari(), apple(480, 360), apple_core(480, 360),
+        marisa_broom(), yukari(),
+        tenshi(480, 640, pose="hips"), tenshi(480, 640, pose="flick"),
+        tenshi(480, 640, pose="peach"),
+        apple(480, 360), apple_core(480, 360),
         broom(480, 360), sakura_petal(480, 360), moon(480, 360),
         leaf_maple(480, 360), leaf_ginkgo(480, 360), fan_open(480, 360),
         parasol(480, 360), scythe(480, 200), teacup(480, 360), knife(480, 360),
