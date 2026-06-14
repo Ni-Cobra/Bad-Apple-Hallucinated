@@ -23,7 +23,7 @@ EXPORTED API
 ------------
 Geometry helpers:
     circle_poly, ellipse_poly, ribbon, arc_points, mirror_x, mirror_polys,
-    transform_polys, draw_polys, lerp_polys
+    transform_polys, draw_polys, lerp_polys, clip_polys_x
 
 Figure parts (style primitives, reused by characters & scenes):
     head, dress_body, limb, reimu_bow, detached_sleeve, witch_hat, mob_cap,
@@ -41,6 +41,8 @@ Handoff shapes & shared props (the morph chain, PROJECT.md sec.6):
     apple, apple_core            (sc 1,2,3,35 / 3->4)
     broom                        (sc 3,35)
     sakura_petal                 (sc 8,9->10)
+    cherry_tree                  (sc 8,9 -- half-bloomed Saigyou Ayakashi)
+    yuyuko                       (sc 8 bg, 9 -- mob cap + fan)
     moon                         (sc 13,14,15)
     leaf_maple, leaf_ginkgo      (sc 19,20)
     fan_open                     (sc 9,23,24)
@@ -150,6 +152,40 @@ def draw_polys(c, polys, color=None):
     for p in polys:
         if len(p) >= 3:
             c.polygon(p, color=color)
+
+
+def clip_polys_x(polys, seam, keep="left"):
+    """Clip every polygon to one side of the vertical line x=seam.
+
+    keep='left' keeps the x<=seam part of each polygon, keep='right' the x>=seam
+    part (Sutherland-Hodgman against one half-plane). The split-screen / dual-
+    polarity scenes use it: draw a figure clipped-left in one ink and clipped-right
+    in the other ink so the seam mirrors exactly (Eiki on the seam, sc 11;
+    opposite-polarity halves, sc 33). Returns a list of clipped polys (drops any
+    that fall entirely on the far side).
+    """
+    out = []
+    for poly in polys:
+        clipped = _clip_one_x(poly, seam, keep)
+        if len(clipped) >= 3:
+            out.append(clipped)
+    return out
+
+
+def _clip_one_x(poly, seam, keep):
+    inside = (lambda x: x <= seam) if keep == "left" else (lambda x: x >= seam)
+    res = []
+    n = len(poly)
+    for i in range(n):
+        ax, ay = poly[i]
+        bx, by = poly[(i + 1) % n]
+        a_in, b_in = inside(ax), inside(bx)
+        if a_in:
+            res.append((ax, ay))
+        if a_in != b_in:                       # edge crosses the seam -> add cut point
+            t = (seam - ax) / (bx - ax) if bx != ax else 0.0
+            res.append((seam, ay + (by - ay) * t))
+    return res
 
 
 def lerp_polys(polys_a, polys_b, t):
@@ -461,6 +497,73 @@ def sakura_petal(cx, cy, w=44, h=64, rot=0.0):
     ]
     ca, sa = math.cos(rot), math.sin(rot)
     return [[(cx + x * ca - y * sa, cy + x * sa + y * ca) for x, y in pts]]
+
+
+def cherry_tree(base_x, base_y, height=440, bloom_side=-1, spread=260, bloom_t=1.0):
+    """The half-bloomed Saigyou Ayakashi (Scenes 8/9): a forking trunk with a
+    dense blossom cloud on *bloom_side* and bare branches on the other.
+
+    *bloom_side*=-1 puts the blossom cloud on the left, bare branches on the
+    right (matches ref f1801). *bloom_t* in [0,1] grows the blossom cloud (for
+    the "half-blooming" reveal). Returns ink silhouette polys.
+    """
+    s = bloom_side
+    polys = []
+    fork_y = base_y - height * 0.40
+    # trunk, leaning slightly toward the bloom side
+    polys += ribbon([(base_x, base_y), (base_x - 8 * s, base_y - height * 0.22),
+                     (base_x + 4 * s, fork_y)], [32, 22, 15])
+    fx, fy = base_x + 4 * s, fork_y
+    # --- bare-branch side (opposite the bloom): thin forking ribbons ---
+    bb = -s
+    polys += ribbon([(fx, fy), (fx + bb * spread * 0.4, fy - height * 0.12),
+                     (fx + bb * spread * 0.85, fy - height * 0.26)], [11, 5, 2])
+    for f0, lift, dx, dy, w in [
+            (0.30, 0.05, 0.45, 0.34, 6), (0.52, 0.13, 0.30, 0.42, 5),
+            (0.66, 0.20, 0.80, 0.26, 5), (0.45, 0.16, 0.62, 0.10, 4)]:
+        sx = fx + bb * spread * f0
+        sy = fy - height * (0.10 + lift)
+        polys += ribbon([(sx, sy),
+                         (sx + bb * spread * dx * 0.5, sy - height * dy * 0.5),
+                         (sx + bb * spread * dx, sy - height * dy)], [w, w * 0.5, 1.5])
+    # --- bloom side: a thick branch feeding a lumpy blossom cloud ---
+    polys += ribbon([(fx, fy), (fx + s * spread * 0.28, fy - height * 0.16),
+                     (fx + s * spread * 0.48, fy - height * 0.30)], [14, 9, 5])
+    bcx = base_x + s * spread * 0.5
+    bcy = fork_y - height * 0.32
+    R = spread * 0.6 * max(0.05, bloom_t)
+    for ox, oy, rr in [(0.0, 0.0, 1.0), (-0.6, 0.08, 0.66), (0.6, 0.12, 0.68),
+                       (-0.34, -0.5, 0.6), (0.36, -0.46, 0.62), (0.0, -0.72, 0.54),
+                       (-0.05, 0.5, 0.64), (0.62, -0.18, 0.5), (-0.62, -0.2, 0.5)]:
+        polys += circle_poly(bcx + ox * R, bcy + oy * R, rr * R * 0.58, n=26)
+    return polys
+
+
+def yuyuko(cx=480, scale=1.0, fan_t=0.0, arm_t=0.0):
+    """Yuyuko Saigyouji (Scenes 8 bg / 9): long pale hair, a mob cap with its
+    signature triangular fold, a wide-sleeved kimono. *fan_t*>0 opens her folding
+    fan in the raised right hand; *arm_t* lifts that arm out to wave the petal off.
+    """
+    polys = []
+    polys += long_hair(cx, 150, 66, 322)
+    polys += head(cx, 178, 47)
+    polys += mob_cap(cx, 150, 82, 50)
+    polys += [[(cx - 22, 110), (cx + 22, 110), (cx + 3, 66)]]   # peaked fold (signature)
+    polys += dress_body(cx, 224, 366, 624, 66, 90, 172)
+    # wide kimono sleeves
+    polys += [[(cx - 66, 234), (cx - 156, 256), (cx - 150, 372), (cx - 66, 346)]]
+    polys += [[(cx + 66, 234), (cx + 156, 256), (cx + 150, 372), (cx + 66, 346)]]
+    # raised right arm (holds the fan), lifting with arm_t
+    handx = lerp(cx + 92, cx + 150, arm_t)
+    handy = lerp(300, 232, arm_t)
+    polys += limb([(cx + 62, 246), ((cx + 62 + handx) / 2, (246 + handy) / 2 - 10),
+                   (handx, handy)], [14, 11, 8])
+    if fan_t > 0:
+        polys += transform_polys(fan_open(handx, handy, r=120 * fan_t, a0=-2.6, a1=-0.4),
+                                 rotate=0.2, origin=(handx, handy))
+    if scale != 1.0:
+        polys = transform_polys(polys, scale=scale, origin=(cx, 360))
+    return polys
 
 
 def moon(cx, cy, r=110):
@@ -797,6 +900,8 @@ if __name__ == "__main__":
         rod_of_remorse(480, 500), pen(480, 360), gourd(480, 360), drop(480, 360),
         doll(480, 360), gap_sukima(480, 360), sdm_skyline(), crown_splash(480, 360),
         raised_finger(480, 360), bat_wing(480, 360), crystal_wing(480, 360),
+        cherry_tree(480, 640), yuyuko(fan_t=1.0, arm_t=1.0),
+        clip_polys_x(circle_poly(480, 360, 100), 480, "left"),
     ]
     print(f"shapes.py self-check OK: {len(_checks)} builders, "
           f"{sum(len(p) for p in _checks)} polygons total")
