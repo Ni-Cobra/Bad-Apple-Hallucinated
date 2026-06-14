@@ -59,6 +59,7 @@ Handoff shapes & shared props (the morph chain, PROJECT.md sec.6):
     sdm_skyline                  (sc 3)
     crown_splash                 (sc 28,31)
     splash_field / SPLASH_FIELD  (sc 28->29 -- spray plume that morphs to petals)
+    blade_tip                    (sc 30->31 -- downward scythe blade tip + drop)
 
 Scene helpers (draw directly to a canvas):
     draw_stars(canvas, ...)      -- the scene-3 starfield (fixed, frame-stable)
@@ -825,6 +826,22 @@ def crown_splash(cx, cy, r=120, spikes=11, t=1.0, color=None):
         polys += [[(bx - 7, by), (bx + 7, by), (tipx + 3, tipy)]]
         polys += circle_poly(tipx, tipy - 5, 7)            # droplet bead
     return polys
+
+
+def blade_tip(tip=(500, 268)):
+    """The downward-pointing scythe blade tip for the Scene 30->31 hand-off
+    (ref f5881): a white fang sweeping in from the upper-left and tapering to a
+    point at *tip*, from which a drop gathers and falls. Shared so Scene 30's
+    last frame and Scene 31's first frame are identical by construction."""
+    tx, ty = tip
+    return [[
+        (-80, -80), (300, -80),            # top edge, off the top-left
+        (tx + 18, ty - 150),               # upper-right shoulder of the blade
+        (tx, ty),                          # the downward point
+        (tx - 70, ty - 84),                # lower edge climbing back left
+        (tx - 320, ty - 200),
+        (-80, -20),                        # back down the left edge
+    ]]
 
 
 # Deterministic spray-fountain field for the Scene 28->29 handoff: Nitori's dive
