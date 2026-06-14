@@ -7,6 +7,10 @@ __pycache__/
 frames/**/*.png
 output/*.mp4
 
+# Fetched audio and video assets
+assets/*.mp3
+assets/*.mp4
+
 # Scratch / preview subdirs
 frames/_smoke/
 frames/_assets_preview/
