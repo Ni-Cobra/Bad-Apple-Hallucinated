@@ -92,6 +92,29 @@ for the optional end-of-project polish pass)
       both all-zero (solid black) AND byte-identical arrays.
 - [ ] Final watch-through (optional, by the user) — video is complete & playable.
 
+## Add-on — Side-by-side comparison render  ✅ DONE (2026-06-14)
+
+- [x] Fetched the **canonical** original PV (Internet Archive item
+      `niconico-sm8628149`, file `sm8628149.mp4`: 219.1 s, 512×384 4:3, 30 fps) to
+      `assets/badapple_original.mp4` (gitignored). NOTE: an earlier-fetched file was
+      the WRONG upload (5:19 / 319 s) — deleted; the correct one is 3:39, matching
+      our output. The `bad-apple-pv_202605` audio item has audio only (no video).
+- [x] Built `output/badapple_compare.mp4` (1200×720): our recreation full-size on
+      the left, the original at **25 % size (240×180)** on a black right panel,
+      vertically centered (overlay x=960 y=270), start-synced. Audio = our existing
+      muxed PV track (`-map 0:a:0?`). Clamped to the recreation length with
+      `overlay=...:shortest=1` → exactly **6570 frames / 219.0 s** / h264 High +
+      AAC 192k. Sync spot-checked at 5/30/110/150 s (polarity + beats match).
+- [x] **Automated in `src/encode.py`**: every export now builds the comparison
+      automatically right after the main encode (default-on whenever
+      `assets/badapple_original.mp4` exists — same pattern as the audio mux).
+      Panel size is computed as 25 % of the actual frame dimensions (so partial
+      smoke renders compare correctly too), and `overlay shortest=1` trims the
+      original to the render length. Flags: `--no-compare` to skip,
+      `--compare-original FILE` to override the source, `--compare-out FILE` for a
+      custom path (default `<out>_compare.mp4`). Verified: one `python
+      src/encode.py` run wrote both `badapple.mp4` and `badapple_compare.mp4`.
+
 ## Session log
 
 | Date | What was done | Where it stopped / next step |

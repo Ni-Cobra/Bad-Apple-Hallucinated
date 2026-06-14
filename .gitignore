@@ -7,8 +7,9 @@ __pycache__/
 frames/**/*.png
 output/*.mp4
 
-# Fetched audio asset (re-downloadable from Internet Archive item bad-apple-pv_202605; see TOOLING.md)
+# Fetched audio and video assets
 assets/*.mp3
+assets/*.mp4
 
 # Scratch / preview subdirs
 frames/_smoke/
